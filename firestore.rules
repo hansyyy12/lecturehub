@@ -1,0 +1,230 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Helper functions
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isUser(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() > 0 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    // Super Admin check: recognizes primary user email, LH-ADMIN-84729163 index number, or admin role in users collection
+    function isSuperAdmin() {
+      return (
+        request.auth != null && (
+          request.auth.token.email == 'hansyyy12@gmail.com'
+          || request.auth.uid == 'super_admin_hans'
+          || request.auth.uid == 'LH-ADMIN-84729163'
+          || (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && (
+               get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin'
+               || get(/databases/$(database)/documents/users/$(request.auth.uid)).data.indexNo == 'LH-ADMIN-84729163'
+             ))
+        )
+      );
+    }
+
+    // 1. User Profiles
+    match /users/{userId} {
+      allow read: if true;
+      allow create, update: if isSuperAdmin() || (
+        isUser(userId)
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.name is string
+        && request.resource.data.name.size() <= 100
+        && request.resource.data.role in ['student', 'lecturer', 'admin']
+      ) || (
+        // Allow creating and updating the root super admin record or starter personas
+        userId == 'super_admin_hans'
+        || (request.resource.data.role == 'admin' && request.resource.data.email == 'hansyyy12@gmail.com')
+        || userId.matches('^demo_.*')
+        || userId.matches('^student_.*')
+      );
+      allow delete: if isSuperAdmin();
+    }
+
+    // 2. Courses
+    match /courses/{courseId} {
+      allow read: if true;
+      allow create: if isSuperAdmin() || courseId.matches('^course_.*') || (
+        isSignedIn()
+        && isValidId(courseId)
+        && request.resource.data.ownerId == request.auth.uid
+        && request.resource.data.name is string && request.resource.data.name.size() <= 150
+        && request.resource.data.code is string && request.resource.data.code.size() <= 50
+      );
+      allow update: if isSuperAdmin() || courseId.matches('^course_.*') || (
+        isSignedIn() && (resource.data.ownerId == request.auth.uid || request.auth.token.email == 'hansyyy12@gmail.com')
+      );
+      allow delete: if isSuperAdmin() || (
+        isSignedIn() && (resource.data.ownerId == request.auth.uid || request.auth.token.email == 'hansyyy12@gmail.com')
+      );
+    }
+
+    // 3. Enrollments
+    match /enrollments/{enrollmentId} {
+      allow read: if true;
+      allow create: if isSuperAdmin() || enrollmentId.matches('^enroll_.*') || (
+        isSignedIn()
+        && isValidId(enrollmentId)
+        && request.resource.data.studentId == request.auth.uid
+      );
+      allow update: if isSuperAdmin() || enrollmentId.matches('^enroll_.*') || isSignedIn();
+      allow delete: if isSuperAdmin() || (
+        isSignedIn() && (resource.data.studentId == request.auth.uid || request.auth.token.email == 'hansyyy12@gmail.com')
+      );
+    }
+
+    // 4. Announcements
+    match /announcements/{announcementId} {
+      allow read: if true;
+      allow create: if isSuperAdmin() || announcementId.matches('^ann_.*') || (
+        isSignedIn()
+        && isValidId(announcementId)
+        && request.resource.data.authorId == request.auth.uid
+      );
+      allow update: if isSuperAdmin() || announcementId.matches('^ann_.*') || (
+        isSignedIn() && resource.data.authorId == request.auth.uid
+      );
+      allow delete: if isSuperAdmin() || (
+        isSignedIn() && resource.data.authorId == request.auth.uid
+      );
+    }
+
+    // 5. Assignments
+    match /assignments/{assignmentId} {
+      allow read: if true;
+      allow create: if isSuperAdmin() || assignmentId.matches('^asg_.*') || (
+        isSignedIn()
+        && isValidId(assignmentId)
+        && request.resource.data.ownerId == request.auth.uid
+      );
+      allow update: if isSuperAdmin() || assignmentId.matches('^asg_.*') || (
+        isSignedIn() && resource.data.ownerId == request.auth.uid
+      );
+      allow delete: if isSuperAdmin() || (
+        isSignedIn() && resource.data.ownerId == request.auth.uid
+      );
+    }
+
+    // 6. Submissions
+    match /submissions/{submissionId} {
+      allow read: if isSuperAdmin() || isSignedIn();
+      allow create: if isSuperAdmin() || (
+        isSignedIn()
+        && isValidId(submissionId)
+        && request.resource.data.studentId == request.auth.uid
+      );
+      allow update: if isSuperAdmin() || isSignedIn();
+      allow delete: if isSuperAdmin() || (
+        isSignedIn() && resource.data.studentId == request.auth.uid
+      );
+    }
+
+    // 7. Quizzes
+    match /quizzes/{quizId} {
+      allow read: if true;
+      allow create: if isSuperAdmin() || quizId.matches('^quiz_.*') || (
+        isSignedIn()
+        && isValidId(quizId)
+        && request.resource.data.ownerId == request.auth.uid
+      );
+      allow update: if isSuperAdmin() || quizId.matches('^quiz_.*') || (
+        isSignedIn() && resource.data.ownerId == request.auth.uid
+      );
+      allow delete: if isSuperAdmin() || (
+        isSignedIn() && resource.data.ownerId == request.auth.uid
+      );
+    }
+
+    // 8. Quiz Attempts
+    match /quizAttempts/{attemptId} {
+      allow read: if true;
+      allow create: if isSuperAdmin() || attemptId.matches('^attempt_.*') || (
+        isSignedIn()
+        && isValidId(attemptId)
+        && request.resource.data.studentId == request.auth.uid
+      );
+      allow update: if isSuperAdmin() || isSignedIn();
+      allow delete: if isSuperAdmin() || (
+        isSignedIn() && resource.data.studentId == request.auth.uid
+      );
+    }
+
+    // 9. Study Files
+    match /studyFiles/{fileId} {
+      allow read: if true;
+      allow create: if isSuperAdmin() || fileId.matches('^file_.*') || (
+        isSignedIn()
+        && isValidId(fileId)
+        && request.resource.data.userId == request.auth.uid
+      );
+      allow update: if isSuperAdmin() || fileId.matches('^file_.*') || (
+        isSignedIn() && resource.data.userId == request.auth.uid
+      );
+      allow delete: if isSuperAdmin() || (
+        isSignedIn() && resource.data.userId == request.auth.uid
+      );
+    }
+
+    // 10. Budget Plans (Strict Personal Isolation + Super Admin access)
+    match /budgetPlans/{planId} {
+      allow read: if isSuperAdmin() || (isSignedIn() && resource.data.userId == request.auth.uid);
+      allow create: if isSuperAdmin() || (
+        isSignedIn()
+        && isValidId(planId)
+        && request.resource.data.userId == request.auth.uid
+      );
+      allow update: if isSuperAdmin() || (
+        isSignedIn()
+        && resource.data.userId == request.auth.uid
+        && request.resource.data.userId == request.auth.uid
+      );
+      allow delete: if isSuperAdmin() || (
+        isSignedIn() && resource.data.userId == request.auth.uid
+      );
+    }
+
+    // 11. Cycle Care Data (Strict Personal Privacy + Super Admin access)
+    match /cycleData/{userId} {
+      allow read: if isSuperAdmin() || isUser(userId);
+      allow create: if isSuperAdmin() || (
+        isUser(userId) && request.resource.data.userId == request.auth.uid
+      );
+      allow update: if isSuperAdmin() || (
+        isUser(userId) && request.resource.data.userId == request.auth.uid
+      );
+      allow delete: if isSuperAdmin() || isUser(userId);
+    }
+
+    // 12. Personal Tasks (Strict Personal Isolation + Super Admin access)
+    match /personalTasks/{taskId} {
+      allow read: if isSuperAdmin() || (isSignedIn() && resource.data.userId == request.auth.uid);
+      allow create: if isSuperAdmin() || (
+        isSignedIn()
+        && isValidId(taskId)
+        && request.resource.data.userId == request.auth.uid
+      );
+      allow update: if isSuperAdmin() || (
+        isSignedIn() && resource.data.userId == request.auth.uid
+      );
+      allow delete: if isSuperAdmin() || (
+        isSignedIn() && resource.data.userId == request.auth.uid
+      );
+    }
+
+    // 13. Live Meetings
+    match /meetings/{meetingId} {
+      allow read: if true;
+      allow create: if isSuperAdmin() || meetingId.matches('^meet_.*') || (isSignedIn() && isValidId(meetingId));
+      allow update: if isSuperAdmin() || meetingId.matches('^meet_.*') || isSignedIn();
+      allow delete: if isSuperAdmin() || isSignedIn();
+    }
+  }
+}

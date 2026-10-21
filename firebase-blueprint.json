@@ -1,0 +1,280 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "User profile document containing account role, academic level, and identifiers.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "description": "Firebase Auth UID" },
+        "name": { "type": "string", "maxLength": 100, "description": "Full name of the user" },
+        "email": { "type": "string", "maxLength": 150, "description": "Email address" },
+        "role": { "type": "string", "enum": ["student", "lecturer", "admin"], "description": "Account role" },
+        "accountId": { "type": "string", "maxLength": 30, "description": "Account identifier e.g. STU-10294" },
+        "indexNo": { "type": "string", "maxLength": 30, "description": "Student index number" },
+        "level": { "type": "string", "maxLength": 30, "description": "Academic level e.g. Level 200" },
+        "phone": { "type": "string", "maxLength": 30, "description": "Contact phone number" },
+        "code": { "type": "string", "maxLength": 30, "description": "Active course code if registered" },
+        "createdAt": { "type": "string", "description": "ISO timestamp of account creation" }
+      },
+      "required": ["uid", "name", "email", "role"]
+    },
+    "Course": {
+      "title": "Course",
+      "description": "Academic course offering created by a lecturer for a specific academic level.",
+      "type": "object",
+      "properties": {
+        "ownerId": { "type": "string", "description": "Lecturer Auth UID" },
+        "ownerName": { "type": "string", "maxLength": 100, "description": "Lecturer name" },
+        "name": { "type": "string", "maxLength": 150, "description": "Course title" },
+        "level": { "type": "string", "maxLength": 30, "description": "Academic level e.g. Level 100" },
+        "code": { "type": "string", "maxLength": 30, "description": "Unique student registration code" },
+        "semester": { "type": "string", "maxLength": 50, "description": "Academic semester" },
+        "days": { "type": "array", "description": "Days of week when lecture is held" },
+        "startDate": { "type": "string", "maxLength": 10, "description": "Course start date (YYYY-MM-DD)" },
+        "endDate": { "type": "string", "maxLength": 10, "description": "Course end date (YYYY-MM-DD)" },
+        "startTime": { "type": "string", "maxLength": 5, "description": "Start time (HH:MM)" },
+        "endTime": { "type": "string", "maxLength": 5, "description": "End time (HH:MM)" },
+        "location": { "type": "string", "maxLength": 100, "description": "Lecture hall or classroom location" },
+        "attendanceMark": { "type": "number", "description": "Mark awarded per present session" },
+        "quizWeight": { "type": "number", "description": "Weight of quizzes in CA (0-100)" },
+        "attendanceWeight": { "type": "number", "description": "Weight of attendance in CA (0-100)" },
+        "assignmentWeight": { "type": "number", "description": "Weight of assignments in CA (0-100)" },
+        "examMax": { "type": "number", "description": "Total available exam mark" },
+        "caShare": { "type": "number", "description": "CA percentage contribution to final grade" }
+      },
+      "required": ["ownerId", "name", "level", "code"]
+    },
+    "Enrollment": {
+      "title": "Enrollment",
+      "description": "Student enrollment in a specific course offering.",
+      "type": "object",
+      "properties": {
+        "courseId": { "type": "string", "description": "Document ID of the course" },
+        "courseCode": { "type": "string", "maxLength": 30, "description": "Course code" },
+        "courseName": { "type": "string", "maxLength": 150, "description": "Course title" },
+        "studentId": { "type": "string", "description": "Student Auth UID" },
+        "accountId": { "type": "string", "maxLength": 30, "description": "Student Account ID" },
+        "fullName": { "type": "string", "maxLength": 100, "description": "Student full name" },
+        "indexNo": { "type": "string", "maxLength": 30, "description": "Student Index number" },
+        "phone": { "type": "string", "maxLength": 30, "description": "Student phone number" },
+        "level": { "type": "string", "maxLength": 30, "description": "Academic level" },
+        "attendance": { "type": "object", "description": "Daily attendance status map" },
+        "marks": { "type": "object", "description": "Exam marks map" },
+        "registeredAt": { "type": "string", "description": "Registration date" }
+      },
+      "required": ["courseId", "courseCode", "studentId", "fullName"]
+    },
+    "Announcement": {
+      "title": "Announcement",
+      "description": "Course broadcast message published by a lecturer.",
+      "type": "object",
+      "properties": {
+        "courseId": { "type": "string", "description": "Course ID" },
+        "courseCode": { "type": "string", "maxLength": 30, "description": "Course code" },
+        "courseName": { "type": "string", "maxLength": 150, "description": "Course title" },
+        "level": { "type": "string", "maxLength": 30, "description": "Target academic level" },
+        "title": { "type": "string", "maxLength": 120, "description": "Announcement heading" },
+        "message": { "type": "string", "maxLength": 2000, "description": "Announcement body text" },
+        "appliesDate": { "type": "string", "maxLength": 10, "description": "Date notice applies to" },
+        "author": { "type": "string", "maxLength": 100, "description": "Author name" },
+        "authorId": { "type": "string", "description": "Author UID" }
+      },
+      "required": ["courseCode", "title", "message", "authorId"]
+    },
+    "Assignment": {
+      "title": "Assignment",
+      "description": "Class assignment or coursework created by a lecturer.",
+      "type": "object",
+      "properties": {
+        "ownerId": { "type": "string", "description": "Lecturer Auth UID" },
+        "courseCode": { "type": "string", "maxLength": 30, "description": "Target course code" },
+        "type": { "type": "string", "enum": ["Assignment", "Quiz", "Project"], "description": "Work type" },
+        "title": { "type": "string", "maxLength": 150, "description": "Assignment title" },
+        "due": { "type": "string", "maxLength": 10, "description": "Due date (YYYY-MM-DD)" },
+        "desc": { "type": "string", "maxLength": 2000, "description": "Instructions" }
+      },
+      "required": ["ownerId", "courseCode", "title", "due"]
+    },
+    "Submission": {
+      "title": "Submission",
+      "description": "Student submitted coursework document with lecturer feedback and grade.",
+      "type": "object",
+      "properties": {
+        "assignmentId": { "type": "string", "description": "Assignment document ID" },
+        "studentId": { "type": "string", "description": "Student Auth UID" },
+        "studentName": { "type": "string", "maxLength": 100, "description": "Student name" },
+        "courseCode": { "type": "string", "maxLength": 30, "description": "Course code" },
+        "itemTitle": { "type": "string", "maxLength": 150, "description": "Assignment title" },
+        "fileName": { "type": "string", "maxLength": 200, "description": "Submitted file name" },
+        "fileType": { "type": "string", "maxLength": 20, "description": "File extension / MIME" },
+        "fileDataUrl": { "type": "string", "description": "File preview or document data URL" },
+        "notes": { "type": "string", "maxLength": 1000, "description": "Student submission notes" },
+        "submissionDate": { "type": "string", "maxLength": 10, "description": "Date submitted" },
+        "status": { "type": "string", "enum": ["Submitted", "Graded"], "description": "Grading status" },
+        "mark": { "type": "string", "maxLength": 20, "description": "Assigned mark (0-100)" },
+        "feedback": { "type": "string", "maxLength": 2000, "description": "Lecturer feedback notes" }
+      },
+      "required": ["studentId", "courseCode", "fileName", "status"]
+    },
+    "Quiz": {
+      "title": "Quiz",
+      "description": "Interactive online quiz or examination.",
+      "type": "object",
+      "properties": {
+        "ownerId": { "type": "string", "description": "Lecturer Auth UID" },
+        "courseCode": { "type": "string", "maxLength": 30, "description": "Course code" },
+        "title": { "type": "string", "maxLength": 150, "description": "Quiz title" },
+        "duration": { "type": "number", "description": "Duration in minutes" },
+        "startAt": { "type": "string", "description": "ISO start datetime" },
+        "endAt": { "type": "string", "description": "ISO deadline datetime" },
+        "releaseResults": { "type": "boolean", "description": "Whether results are published to students" },
+        "questions": { "type": "array", "description": "List of questions with options and mark guide" }
+      },
+      "required": ["ownerId", "courseCode", "title", "duration", "questions"]
+    },
+    "QuizAttempt": {
+      "title": "QuizAttempt",
+      "description": "Student response submission for an online quiz or exam.",
+      "type": "object",
+      "properties": {
+        "quizId": { "type": "string", "description": "Quiz document ID" },
+        "studentId": { "type": "string", "description": "Student Auth UID" },
+        "studentName": { "type": "string", "maxLength": 100, "description": "Student name" },
+        "courseCode": { "type": "string", "maxLength": 30, "description": "Course code" },
+        "answers": { "type": "object", "description": "Map of questionId to student answer" },
+        "startedAt": { "type": "string", "description": "ISO timestamp when attempt started" },
+        "submittedAt": { "type": "string", "description": "ISO timestamp when submitted" },
+        "objectiveScore": { "type": "number", "description": "Score from automated marking" },
+        "manualScore": { "type": "number", "description": "Score from lecturer short-answer grading" },
+        "score": { "type": "number", "description": "Total combined score" },
+        "maxScore": { "type": "number", "description": "Maximum possible score" },
+        "needsManual": { "type": "boolean", "description": "Whether short answer requires manual grading" }
+      },
+      "required": ["quizId", "studentId", "courseCode"]
+    },
+    "StudyFile": {
+      "title": "StudyFile",
+      "description": "Course slide, lecture document, or student study note.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "description": "Owner Auth UID" },
+        "uploaderName": { "type": "string", "maxLength": 100, "description": "Uploader name" },
+        "courseCode": { "type": "string", "maxLength": 30, "description": "Associated course code or 'general'" },
+        "name": { "type": "string", "maxLength": 200, "description": "File name" },
+        "size": { "type": "number", "description": "File size in bytes" },
+        "shared": { "type": "boolean", "description": "Shared with registered students of the course" },
+        "fileData": { "type": "string", "description": "File data / preview representation" },
+        "addedAt": { "type": "string", "maxLength": 10, "description": "Date added" }
+      },
+      "required": ["userId", "courseCode", "name", "size"]
+    },
+    "BudgetPlan": {
+      "title": "BudgetPlan",
+      "description": "Personal or semester financial budget plan.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "description": "Owner Auth UID" },
+        "name": { "type": "string", "maxLength": 100, "description": "Plan title" },
+        "currency": { "type": "string", "maxLength": 10, "description": "Currency symbol e.g. GH₵, $, €" },
+        "totalBudget": { "type": "number", "description": "Total income or spending ceiling" },
+        "items": { "type": "array", "description": "List of expense/savings/bill/debt items" },
+        "active": { "type": "boolean", "description": "Is this currently active plan" }
+      },
+      "required": ["userId", "name", "currency", "totalBudget"]
+    },
+    "CycleData": {
+      "title": "CycleData",
+      "description": "Private menstrual cycle tracking and symptom logs.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "description": "Owner Auth UID" },
+        "cycleLength": { "type": "number", "description": "Typical cycle length in days" },
+        "periodLength": { "type": "number", "description": "Typical period duration in days" },
+        "lastStart": { "type": "string", "maxLength": 10, "description": "Latest period start date" },
+        "lastEnd": { "type": "string", "maxLength": 10, "description": "Latest period end date" },
+        "periods": { "type": "array", "description": "Historical logged periods" },
+        "logs": { "type": "array", "description": "Daily symptoms and mood logs" },
+        "reminders": { "type": "object", "description": "Notification reminder preferences" }
+      },
+      "required": ["userId"]
+    },
+    "PersonalTask": {
+      "title": "PersonalTask",
+      "description": "Private personal note or study task.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "description": "Owner Auth UID" },
+        "title": { "type": "string", "maxLength": 150, "description": "Task or note title" },
+        "desc": { "type": "string", "maxLength": 2000, "description": "Details or notes" },
+        "completed": { "type": "boolean", "description": "Completion status" }
+      },
+      "required": ["userId", "title"]
+    },
+    "LiveMeeting": {
+      "title": "LiveMeeting",
+      "description": "Virtual lecture or peer classroom video session.",
+      "type": "object",
+      "properties": {
+        "ownerId": { "type": "string", "description": "Host Auth UID" },
+        "courseCode": { "type": "string", "maxLength": 30, "description": "Course code" },
+        "title": { "type": "string", "maxLength": 150, "description": "Session topic" },
+        "active": { "type": "boolean", "description": "Session live status" }
+      },
+      "required": ["ownerId", "courseCode", "title"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/UserProfile" },
+      "description": "User profile records containing account role and university identifiers."
+    },
+    "/courses/{courseId}": {
+      "schema": { "$ref": "#/entities/Course" },
+      "description": "Course offerings created and managed by lecturers."
+    },
+    "/enrollments/{enrollmentId}": {
+      "schema": { "$ref": "#/entities/Enrollment" },
+      "description": "Course enrollment records linking students to course offerings."
+    },
+    "/announcements/{announcementId}": {
+      "schema": { "$ref": "#/entities/Announcement" },
+      "description": "Official course announcements and timetable updates."
+    },
+    "/assignments/{assignmentId}": {
+      "schema": { "$ref": "#/entities/Assignment" },
+      "description": "Assignments, homework, and term project requirements."
+    },
+    "/submissions/{submissionId}": {
+      "schema": { "$ref": "#/entities/Submission" },
+      "description": "Student assignment submissions and lecturer grading feedback."
+    },
+    "/quizzes/{quizId}": {
+      "schema": { "$ref": "#/entities/Quiz" },
+      "description": "Live quizzes and exams with automatic or manual grading rules."
+    },
+    "/quizAttempts/{attemptId}": {
+      "schema": { "$ref": "#/entities/QuizAttempt" },
+      "description": "Student quiz attempts, timed responses, and grade breakdown."
+    },
+    "/studyFiles/{fileId}": {
+      "schema": { "$ref": "#/entities/StudyFile" },
+      "description": "Course lecture slides, reading materials, and student library files."
+    },
+    "/budgetPlans/{planId}": {
+      "schema": { "$ref": "#/entities/BudgetPlan" },
+      "description": "Campus budget and personal expenditure plans."
+    },
+    "/cycleData/{userId}": {
+      "schema": { "$ref": "#/entities/CycleData" },
+      "description": "Private cycle and symptom tracking logs strictly isolated to the user."
+    },
+    "/personalTasks/{taskId}": {
+      "schema": { "$ref": "#/entities/PersonalTask" },
+      "description": "Personal workspace tasks and notes."
+    },
+    "/meetings/{meetingId}": {
+      "schema": { "$ref": "#/entities/LiveMeeting" },
+      "description": "Live virtual classrooms and peer-to-peer lecture sessions."
+    }
+  }
+}

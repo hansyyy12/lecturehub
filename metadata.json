@@ -1,0 +1,6 @@
+{
+  "name": "LectureHub - Campus Learning & Budgeting Portal",
+  "description": "Comprehensive campus portal for students and lecturers with real-time course registration, attendance registers, live quizzes, assignment grading, financial budget planner, and cycle care tracker powered by Firebase.",
+  "requestFramePermissions": ["camera", "microphone"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
