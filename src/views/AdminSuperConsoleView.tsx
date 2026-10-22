@@ -28,7 +28,11 @@ import {
   GraduationCap,
   Calendar,
   Layers,
+  Share2,
+  Smartphone,
+  QrCode,
 } from 'lucide-react';
+import { ShareModal } from '../components/ShareModal';
 
 interface AdminSuperConsoleViewProps {
   onSelectTab: (tab: string) => void;
@@ -60,6 +64,7 @@ export const AdminSuperConsoleView: React.FC<AdminSuperConsoleViewProps> = ({ on
   } = useData();
 
   const [activeSection, setActiveSection] = useState<'users' | 'courses' | 'grades' | 'broadcast' | 'system'>('users');
+  const [shareOpen, setShareOpen] = useState(false);
 
   // Search & Filter state for Users
   const [userSearch, setUserSearch] = useState('');
@@ -215,6 +220,13 @@ export const AdminSuperConsoleView: React.FC<AdminSuperConsoleViewProps> = ({ on
             >
               <GraduationCap className="w-4 h-4" />
               Student Portal View
+            </button>
+            <button
+              onClick={() => setShareOpen(true)}
+              className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 font-bold text-sm transition-all shadow-lg shadow-amber-400/20"
+            >
+              <Share2 className="w-4 h-4" />
+              Share with Mobile / Device
             </button>
           </div>
         </div>
@@ -1024,6 +1036,9 @@ export const AdminSuperConsoleView: React.FC<AdminSuperConsoleViewProps> = ({ on
           </div>
         </div>
       )}
+
+      {/* Share Modal */}
+      <ShareModal isOpen={shareOpen} onClose={() => setShareOpen(false)} />
     </div>
   );
 };

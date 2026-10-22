@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import {
   LayoutDashboard,
@@ -18,7 +18,9 @@ import {
   User,
   GraduationCap,
   ShieldAlert,
+  Share2,
 } from 'lucide-react';
+import { ShareModal } from './ShareModal';
 
 interface SidebarProps {
   currentTab: string;
@@ -36,6 +38,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const { user, logout, isSuperAdmin } = useAuth();
   const isAdmin = user?.role === 'admin' || isSuperAdmin;
   const isLecturer = user?.role === 'lecturer';
+
+  const [shareOpen, setShareOpen] = useState(false);
 
   const adminTabs = [
     { id: 'admin-console', label: '👑 Super Admin Console', icon: ShieldAlert },
@@ -169,6 +173,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
         {/* Bottom Actions */}
         <div className="pt-4 border-t border-white/10 space-y-2">
           <button
+            onClick={() => setShareOpen(true)}
+            className="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-semibold text-blue-200 hover:bg-white/10 hover:text-white transition"
+          >
+            <Share2 className="w-4 h-4 text-amber-400" />
+            <span>Share with Phone / Device</span>
+          </button>
+
+          <button
             onClick={logout}
             className="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-semibold text-rose-300 hover:bg-rose-500/10 hover:text-rose-200 transition"
           >
@@ -185,6 +197,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
           </div>
         </div>
       </aside>
+
+      {/* Share Modal */}
+      <ShareModal isOpen={shareOpen} onClose={() => setShareOpen(false)} />
     </>
   );
 };

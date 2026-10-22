@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>LectureHub - Campus Learning & Budgeting Portal</title>
+    <script>
+      // Single Page App redirect for GitHub Pages
+      // Stores path in sessionStorage and redirects to base URL
+      var path = window.location.pathname;
+      var repo = path.split('/')[1] || '';
+      if (repo && window.location.origin.includes('github.io')) {
+        sessionStorage.setItem('spa_redirect', path + window.location.search + window.location.hash);
+        window.location.replace('/' + repo + '/');
+      } else {
+        window.location.replace('/');
+      }
+    </script>
+  </head>
+  <body>
+    <p>Redirecting to LectureHub...</p>
+  </body>
+</html>

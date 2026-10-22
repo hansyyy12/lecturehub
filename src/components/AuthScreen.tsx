@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { UserRole } from '../types';
-import { GraduationCap, BookOpen, ShieldCheck, CheckCircle2, AlertCircle, Sparkles, User, Lock, Mail, Phone, Hash } from 'lucide-react';
+import { GraduationCap, BookOpen, ShieldCheck, CheckCircle2, AlertCircle, Sparkles, User, Lock, Mail, Phone, Hash, Share2, Smartphone, QrCode } from 'lucide-react';
+import { ShareModal } from './ShareModal';
 
 export const AuthScreen: React.FC = () => {
   const { loginWithGoogle, loginWithEmail, registerWithEmail, loginAsDemo, loginAsAdminDemo, loginWithAdminCredentials } = useAuth();
@@ -9,6 +10,7 @@ export const AuthScreen: React.FC = () => {
   const [selectedRole, setSelectedRole] = useState<UserRole>('student');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [shareOpen, setShareOpen] = useState(false);
 
   // Sign In state
   const [signinIdentifier, setSigninIdentifier] = useState('');
@@ -187,6 +189,17 @@ export const AuthScreen: React.FC = () => {
                     Kofi Mensah (Student)
                   </button>
                 </div>
+
+                {/* Share Link with Another Device Button */}
+                <button
+                  type="button"
+                  onClick={() => setShareOpen(true)}
+                  className="w-full mt-2 px-3.5 py-2.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20 text-blue-200 text-xs font-bold flex items-center justify-center gap-2 transition cursor-pointer"
+                >
+                  <Share2 className="w-4 h-4 text-amber-400" />
+                  <span>Share / Open on Phone or Another Device</span>
+                  <QrCode className="w-3.5 h-3.5 text-blue-300 ml-1" />
+                </button>
               </div>
             </div>
           </div>
@@ -483,6 +496,9 @@ export const AuthScreen: React.FC = () => {
           )}
         </div>
       </div>
+
+      {/* Share Modal */}
+      <ShareModal isOpen={shareOpen} onClose={() => setShareOpen(false)} />
     </div>
   );
 };
