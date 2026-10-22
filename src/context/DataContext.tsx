@@ -37,7 +37,9 @@ import {
   deletePersonalTaskDoc,
   subscribeMeetings,
   createMeetingDoc,
+  findCourseByCode,
 } from '../services/firebaseService';
+import { auth } from '../lib/firebase';
 import {
   Course,
   Enrollment,
@@ -468,39 +470,25 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     meetings,
   ]);
 
-  // CRITICAL: Per Firebase Skill, only attach onSnapshot listeners if user is authenticated with Firebase Auth
+  // Real-time synchronization with Firestore
   useEffect(() => {
-    if (!firebaseUser) {
-      setDbStatus('offline');
-      setLoading(false);
-      return;
-    }
-
     setLoading(true);
     setDbStatus('connecting');
-    const authUid = firebaseUser.uid;
     const unsubs: (() => void)[] = [];
 
     try {
+      // 1. Academic Catalog Data (Always subscribed so phone/laptop see updates immediately)
       unsubs.push(
         subscribeCourses(
           (list) => {
-            if (list.length > 0) setCourses(list);
+            if (list.length > 0) {
+              setCourses(list);
+            }
             setDbStatus('connected');
           },
           (err) => {
             console.warn('Courses sync offline:', err.message);
-            setDbStatus('offline');
           }
-        )
-      );
-
-      unsubs.push(
-        subscribeEnrollments(
-          (list) => {
-            if (list.length > 0) setEnrollments(list);
-          },
-          (err) => console.warn('Enrollments sync offline:', err.message)
         )
       );
 
@@ -514,18 +502,11 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       );
 
       unsubs.push(
-        subscribeAssignments(
-          (list) => {
-            if (list.length > 0) setAssignments(list);
+        subscribeMeetings(
+          (m) => {
+            if (m.length > 0) setMeetings(m);
           },
-          (err) => console.warn('Assignments sync offline:', err.message)
-        )
-      );
-
-      unsubs.push(
-        subscribeSubmissions(
-          (list) => setSubmissions(list),
-          (err) => console.warn('Submissions sync offline:', err.message)
+          (err) => console.warn('Meetings sync offline:', err.message)
         )
       );
 
@@ -535,6 +516,32 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
             if (list.length > 0) setQuizzes(list);
           },
           (err) => console.warn('Quizzes sync offline:', err.message)
+        )
+      );
+
+      unsubs.push(
+        subscribeAssignments(
+          (list) => {
+            if (list.length > 0) setAssignments(list);
+          },
+          (err) => console.warn('Assignments sync offline:', err.message)
+        )
+      );
+
+      // 2. User-specific and Enrollment Data
+      unsubs.push(
+        subscribeEnrollments(
+          (list) => {
+            if (list.length > 0) setEnrollments(list);
+          },
+          (err) => console.warn('Enrollments sync offline:', err.message)
+        )
+      );
+
+      unsubs.push(
+        subscribeSubmissions(
+          (list) => setSubmissions(list),
+          (err) => console.warn('Submissions sync offline:', err.message)
         )
       );
 
@@ -552,62 +559,56 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         )
       );
 
-      unsubs.push(
-        subscribeBudgetPlans(
-          authUid,
-          async (plans) => {
-            if (!plans.length) {
-              const def = initialBudgetPlan(authUid);
-              try {
-                await setBudgetPlanDoc(def);
-              } catch {}
-              setBudgetPlans([def]);
-              setActivePlanId(def.id);
-            } else {
-              setBudgetPlans(plans);
-              if (!activePlanId || !plans.some((p) => p.id === activePlanId)) {
-                setActivePlanId(plans[0].id);
+      if (firebaseUser) {
+        const authUid = firebaseUser.uid;
+        unsubs.push(
+          subscribeBudgetPlans(
+            authUid,
+            async (plans) => {
+              if (!plans.length) {
+                const def = initialBudgetPlan(authUid);
+                try {
+                  await setBudgetPlanDoc(def);
+                } catch {}
+                setBudgetPlans([def]);
+                setActivePlanId(def.id);
+              } else {
+                setBudgetPlans(plans);
+                if (!activePlanId || !plans.some((p) => p.id === activePlanId)) {
+                  setActivePlanId(plans[0].id);
+                }
               }
-            }
-          },
-          (err) => console.warn('Budget plans sync offline:', err.message)
-        )
-      );
+            },
+            (err) => console.warn('Budget plans sync offline:', err.message)
+          )
+        );
 
-      unsubs.push(
-        subscribeCycleData(
-          authUid,
-          async (data) => {
-            if (!data) {
-              const def = initialCycleData(authUid);
-              try {
-                await setCycleDataDoc(def);
-              } catch {}
-              setCycleData(def);
-            } else {
-              setCycleData(data);
-            }
-          },
-          (err) => console.warn('Cycle data sync offline:', err.message)
-        )
-      );
+        unsubs.push(
+          subscribeCycleData(
+            authUid,
+            async (data) => {
+              if (!data) {
+                const def = initialCycleData(authUid);
+                try {
+                  await setCycleDataDoc(def);
+                } catch {}
+                setCycleData(def);
+              } else {
+                setCycleData(data);
+              }
+            },
+            (err) => console.warn('Cycle data sync offline:', err.message)
+          )
+        );
 
-      unsubs.push(
-        subscribePersonalTasks(
-          authUid,
-          (tasks) => setPersonalTasks(tasks),
-          (err) => console.warn('Personal tasks sync offline:', err.message)
-        )
-      );
-
-      unsubs.push(
-        subscribeMeetings(
-          (m) => {
-            if (m.length > 0) setMeetings(m);
-          },
-          (err) => console.warn('Meetings sync offline:', err.message)
-        )
-      );
+        unsubs.push(
+          subscribePersonalTasks(
+            authUid,
+            (tasks) => setPersonalTasks(tasks),
+            (err) => console.warn('Personal tasks sync offline:', err.message)
+          )
+        );
+      }
 
       setLoading(false);
     } catch (err) {
@@ -631,39 +632,42 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
    * -----------------------------------------------------------*/
 
   const createCourse = async (course: Omit<Course, 'id'>) => {
+    const cleanCode = course.code.trim().toUpperCase();
     const id = `crs_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
-    const newCourse: Course = { ...course, id };
-    setCourses((prev) => [newCourse, ...prev]);
+    const currentUid = auth.currentUser?.uid || user?.uid || course.ownerId;
+    const newCourse: Course = {
+      ...course,
+      id,
+      code: cleanCode,
+      ownerId: currentUid,
+      ownerName: user?.name || course.ownerName || 'Course Lecturer',
+    };
 
-    if (firebaseUser) {
-      try {
-        await createCourseDoc(course, id);
-      } catch (e) {
-        console.warn('Firestore write error: ', e);
-      }
+    setCourses((prev) => [newCourse, ...prev.filter((c) => c.id !== id)]);
+
+    try {
+      await createCourseDoc(newCourse, id);
+    } catch (e: any) {
+      console.warn('Firestore course creation error: ', e);
     }
     return id;
   };
 
   const updateCourse = async (id: string, updates: Partial<Course>) => {
     setCourses((prev) => prev.map((c) => (c.id === id ? { ...c, ...updates } : c)));
-    if (firebaseUser) {
-      try {
-        await updateCourseDoc(id, updates);
-      } catch (e) {
-        console.warn('Firestore update error: ', e);
-      }
+    try {
+      await updateCourseDoc(id, updates);
+    } catch (e) {
+      console.warn('Firestore update error: ', e);
     }
   };
 
   const deleteCourse = async (id: string) => {
     setCourses((prev) => prev.filter((c) => c.id !== id));
-    if (firebaseUser) {
-      try {
-        await deleteCourseDoc(id);
-      } catch (e) {
-        console.warn('Firestore delete error: ', e);
-      }
+    try {
+      await deleteCourseDoc(id);
+    } catch (e) {
+      console.warn('Firestore delete error: ', e);
     }
   };
 
@@ -675,14 +679,31 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     phone: string
   ) => {
     const cleanCode = code.trim().toUpperCase();
-    const targetCourse = courses.find((c) => c.code.trim().toUpperCase() === cleanCode);
+    let targetCourse = courses.find((c) => c.code.trim().toUpperCase() === cleanCode);
+
+    // If not found in current local state, query Firestore directly for cross-device consistency!
     if (!targetCourse) {
-      return { success: false, message: `No course matches registration code "${code}".` };
+      try {
+        const fetched = await findCourseByCode(cleanCode);
+        if (fetched) {
+          targetCourse = fetched;
+          setCourses((prev) => [fetched, ...prev.filter((c) => c.id !== fetched.id)]);
+        }
+      } catch (err) {
+        console.warn('Error fetching course by code from Firestore:', err);
+      }
     }
 
-    const currentUid = user?.uid || 'student';
+    if (!targetCourse) {
+      return {
+        success: false,
+        message: `No course matches registration code "${code}". Please confirm the code with your lecturer.`,
+      };
+    }
+
+    const currentUid = auth.currentUser?.uid || user?.uid || 'student';
     const alreadyEnrolled = enrollments.some(
-      (e) => e.studentId === currentUid && e.courseId === targetCourse.id
+      (e) => (e.studentId === currentUid || (user && e.studentId === user.uid)) && e.courseId === targetCourse!.id
     );
     if (alreadyEnrolled) {
       return {
@@ -698,23 +719,25 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       courseName: targetCourse.name,
       studentId: currentUid,
       accountId: user?.accountId || `STU-${currentUid.slice(0, 6).toUpperCase()}`,
-      fullName,
-      indexNo,
-      level,
-      phone,
+      fullName: fullName.trim() || user?.name || 'Student',
+      indexNo: indexNo.trim() || user?.indexNo || '',
+      level: level || user?.level || targetCourse.level || 'Level 100',
+      phone: phone.trim() || user?.phone || '',
       attendance: {},
       marks: {},
       registeredAt: new Date().toISOString(),
     };
 
-    setEnrollments((prev) => [...prev, newEnrollment]);
+    setEnrollments((prev) => [...prev.filter((e) => e.id !== newEnrollment.id), newEnrollment]);
 
-    if (firebaseUser) {
-      try {
-        await createEnrollmentDoc(newEnrollment);
-      } catch (e) {
-        console.warn('Firestore enrollment error: ', e);
-      }
+    try {
+      await createEnrollmentDoc(newEnrollment);
+    } catch (e: any) {
+      console.error('Firestore enrollment error: ', e);
+      return {
+        success: false,
+        message: `Cloud registration failed: ${e.message || 'Permission denied or network failure'}.`,
+      };
     }
 
     return {

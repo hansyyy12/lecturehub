@@ -17,6 +17,7 @@ import {
   updateUserDoc,
   deleteUserDoc,
   seedInitialFirestoreDataIfEmpty,
+  findUserByIndexNo,
 } from '../services/firebaseService';
 import { UserProfile, UserRole } from '../types';
 
@@ -358,8 +359,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const loginWithEmail = async (email: string, pass: string, role: UserRole) => {
-    const trimmed = email.trim();
+  const loginWithEmail = async (emailOrIndex: string, pass: string, role: UserRole) => {
+    const trimmed = emailOrIndex.trim();
     if (trimmed.toUpperCase() === 'LH-ADMIN-84729163') {
       return loginWithAdminCredentials(trimmed, pass);
     }
@@ -369,52 +370,79 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     setLoading(true);
     try {
-      const isHans = email.toLowerCase() === 'hansyyy12@gmail.com';
-      const actualRole: UserRole = isHans ? 'admin' : role;
+      let resolvedEmail = trimmed;
 
-      let fUser: User | null = null;
-      try {
-        const res = await signInWithEmailAndPassword(auth, email, pass);
-        fUser = res.user;
-      } catch (err: any) {
-        if (err.code === 'auth/user-not-found' || err.code === 'auth/invalid-credential') {
-          try {
-            const res = await createUserWithEmailAndPassword(auth, email, pass);
-            fUser = res.user;
-          } catch {
-            fUser = null;
+      // If user typed an index number (does not contain @)
+      if (!trimmed.includes('@')) {
+        const matched = await findUserByIndexNo(trimmed);
+        if (matched && matched.email) {
+          resolvedEmail = matched.email;
+        } else {
+          const localMatch = allUsers.find(
+            (u) => (u.indexNo || '').trim().toLowerCase() === trimmed.toLowerCase()
+          );
+          if (localMatch && localMatch.email) {
+            resolvedEmail = localMatch.email;
+          } else {
+            throw new Error(`No account found with Index Number "${trimmed}". Please use your registered email.`);
           }
         }
       }
 
-      const uid = fUser?.uid || (isHans ? 'super_admin_hans' : `user_${email.replace(/[^a-zA-Z0-9]/g, '_')}`);
-      let profile: UserProfile | null = null;
-      if (fUser) {
-        try {
-          profile = await getUserProfile(fUser.uid);
-        } catch {}
+      // STRICT AUTHENTICATION: Never log in unless Firebase Auth confirms credentials!
+      let res;
+      try {
+        res = await signInWithEmailAndPassword(auth, resolvedEmail, pass);
+      } catch (err: any) {
+        console.warn('Firebase Auth sign in failed:', err.code, err.message);
+        if (
+          err.code === 'auth/invalid-credential' ||
+          err.code === 'auth/wrong-password' ||
+          err.code === 'auth/user-not-found'
+        ) {
+          throw new Error('Invalid email or password. Please verify your credentials and try again.');
+        } else if (err.code === 'auth/too-many-requests') {
+          throw new Error('Too many failed login attempts. Please wait a few moments before retrying.');
+        } else if (err.code === 'auth/invalid-email') {
+          throw new Error('Please enter a valid email address.');
+        } else {
+          throw new Error(err.message || 'Authentication failed. Please check your credentials.');
+        }
       }
+
+      const fUser = res.user;
+      const isHans = resolvedEmail.toLowerCase() === 'hansyyy12@gmail.com';
+      const actualRole: UserRole = isHans ? 'admin' : role;
+
+      let profile: UserProfile | null = null;
+      try {
+        profile = await getUserProfile(fUser.uid);
+      } catch {}
 
       if (!profile) {
         profile = {
-          uid,
-          name: isHans ? 'Hans (Super Admin)' : email.split('@')[0],
-          email,
+          uid: fUser.uid,
+          name: isHans ? 'Hans (Super Admin)' : fUser.displayName || resolvedEmail.split('@')[0],
+          email: resolvedEmail,
           role: actualRole,
           accountId: isHans
             ? 'ADM-001'
-            : (actualRole === 'student' ? 'STU-' : 'LEC-') + uid.slice(0, 6).toUpperCase(),
+            : (actualRole === 'student' ? 'STU-' : 'LEC-') + fUser.uid.slice(0, 6).toUpperCase(),
           indexNo: actualRole === 'student' ? 'UE' + Math.floor(10000 + Math.random() * 90000) : '',
           level: actualRole === 'student' ? 'Level 200' : '',
           createdAt: new Date().toISOString(),
         };
-        if (fUser) {
-          try {
-            await setUserProfile(profile);
-          } catch {}
-        }
+        try {
+          await setUserProfile(profile);
+        } catch {}
+      } else if (isHans && profile.role !== 'admin') {
+        profile = { ...profile, role: 'admin' };
+        try {
+          await setUserProfile(profile);
+        } catch {}
       }
 
+      setFirebaseUser(fUser);
       setUser(profile);
       localStorage.setItem('lecturehub_session_user', JSON.stringify(profile));
       setAllUsers((prev) => {
@@ -437,38 +465,56 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   ) => {
     setLoading(true);
     try {
-      const isHans = email.toLowerCase() === 'hansyyy12@gmail.com';
-      const actualRole: UserRole = isHans ? 'admin' : role;
-
-      let fUser: User | null = null;
-      try {
-        const res = await createUserWithEmailAndPassword(auth, email, pass);
-        fUser = res.user;
-      } catch {
-        fUser = null;
+      const cleanEmail = email.trim().toLowerCase();
+      if (!cleanEmail.includes('@')) {
+        throw new Error('Please enter a valid email address.');
+      }
+      if (pass.length < 6) {
+        throw new Error('Password must be at least 6 characters long.');
       }
 
-      const uid = fUser?.uid || (isHans ? 'super_admin_hans' : `user_${Date.now()}`);
+      const isHans = cleanEmail === 'hansyyy12@gmail.com';
+      const actualRole: UserRole = isHans ? 'admin' : role;
+
+      // STRICT REGISTRATION: Create real Firebase user, do NOT swallow errors!
+      let res;
+      try {
+        res = await createUserWithEmailAndPassword(auth, cleanEmail, pass);
+      } catch (err: any) {
+        console.warn('Firebase Auth sign up failed:', err.code, err.message);
+        if (err.code === 'auth/email-already-in-use') {
+          throw new Error('This email is already registered. Please sign in instead.');
+        } else if (err.code === 'auth/weak-password') {
+          throw new Error('Password is too weak. Please use at least 6 characters.');
+        } else if (err.code === 'auth/invalid-email') {
+          throw new Error('Please enter a valid email address.');
+        } else {
+          throw new Error(err.message || 'Account creation failed. Please check inputs.');
+        }
+      }
+
+      const fUser = res.user;
       const profile: UserProfile = {
-        uid,
-        name,
-        email,
+        uid: fUser.uid,
+        name: name.trim() || cleanEmail.split('@')[0],
+        email: cleanEmail,
         role: actualRole,
-        indexNo: indexNo || (actualRole === 'student' ? 'UE' + Math.floor(10000 + Math.random() * 90000) : ''),
+        indexNo: indexNo?.trim() || (actualRole === 'student' ? 'UE' + Math.floor(10000 + Math.random() * 90000) : ''),
         level: level || (actualRole === 'student' ? 'Level 100' : ''),
-        phone: phone || '',
+        phone: phone?.trim() || '',
         accountId: isHans
           ? 'ADM-001'
-          : (actualRole === 'student' ? 'STU-' : 'LEC-') + uid.slice(0, 6).toUpperCase(),
+          : (actualRole === 'student' ? 'STU-' : 'LEC-') + fUser.uid.slice(0, 6).toUpperCase(),
         createdAt: new Date().toISOString(),
       };
 
-      if (fUser) {
-        try {
-          await setUserProfile(profile);
-        } catch {}
+      try {
+        await setUserProfile(profile);
+      } catch (e) {
+        console.warn('Profile write on register:', e);
       }
 
+      setFirebaseUser(fUser);
       setUser(profile);
       localStorage.setItem('lecturehub_session_user', JSON.stringify(profile));
       setAllUsers((prev) => [profile, ...prev.filter((p) => p.uid !== profile.uid)]);

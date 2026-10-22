@@ -14,6 +14,7 @@ import {
   Trash2,
   FileCheck2,
   ArrowLeft,
+  ArrowRight,
   Video,
   Users,
 } from 'lucide-react';
@@ -79,6 +80,13 @@ export const CoursesView: React.FC<CoursesViewProps> = ({
     ? courses.filter((c) => c.ownerId === user?.uid || (!c.ownerId || c.ownerId === 'demo_lecturer_ama_mensah'))
     : courses.filter((c) => myEnrolledIds.has(c.id));
 
+  const availableToRegister = !isLecturer
+    ? courses.filter((c) => !myEnrolledIds.has(c.id))
+    : [];
+
+  const [saveLoading, setSaveLoading] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+
   const activeCourse = selectedCourseId
     ? courses.find((c) => c.id === selectedCourseId)
     : null;
@@ -90,6 +98,7 @@ export const CoursesView: React.FC<CoursesViewProps> = ({
   };
 
   const handleOpenCreateModal = (c?: Course) => {
+    setSaveError(null);
     if (c) {
       setEditingCourse(c);
       setCourseName(c.name);
@@ -121,44 +130,51 @@ export const CoursesView: React.FC<CoursesViewProps> = ({
   const handleSaveCourse = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user) return;
+    setSaveError(null);
+    setSaveLoading(true);
 
-    if (editingCourse) {
-      await updateCourse(editingCourse.id, {
-        name: courseName.trim(),
-        level: courseLevel,
-        code: courseCode.trim().toUpperCase(),
-        semester,
-        days,
-        startDate,
-        endDate,
-        startTime,
-        endTime,
-        location: location.trim(),
-      });
-    } else {
-      await createCourse({
-        ownerId: user.uid,
-        ownerName: user.name,
-        name: courseName.trim(),
-        level: courseLevel,
-        code: courseCode.trim().toUpperCase(),
-        semester,
-        days,
-        startDate,
-        endDate,
-        startTime,
-        endTime,
-        location: location.trim(),
-        attendanceMark: 2,
-        quizWeight: 60,
-        attendanceWeight: 20,
-        assignmentWeight: 20,
-        examMax: 100,
-        caShare: 40,
-      });
+    try {
+      if (editingCourse) {
+        await updateCourse(editingCourse.id, {
+          name: courseName.trim(),
+          level: courseLevel,
+          code: courseCode.trim().toUpperCase(),
+          semester,
+          days,
+          startDate,
+          endDate,
+          startTime,
+          endTime,
+          location: location.trim(),
+        });
+      } else {
+        await createCourse({
+          ownerId: user.uid,
+          ownerName: user.name,
+          name: courseName.trim(),
+          level: courseLevel,
+          code: courseCode.trim().toUpperCase(),
+          semester,
+          days,
+          startDate,
+          endDate,
+          startTime,
+          endTime,
+          location: location.trim(),
+          attendanceMark: 2,
+          quizWeight: 60,
+          attendanceWeight: 20,
+          assignmentWeight: 20,
+          examMax: 100,
+          caShare: 40,
+        });
+      }
+      setModalOpen(false);
+    } catch (err: any) {
+      setSaveError(err.message || 'Failed to save course to cloud database.');
+    } finally {
+      setSaveLoading(false);
     }
-
-    setModalOpen(false);
   };
 
   const handleDeleteCourse = async (id: string, name: string) => {
@@ -549,6 +565,56 @@ export const CoursesView: React.FC<CoursesViewProps> = ({
         )}
       </div>
 
+      {/* Available Courses Catalog for Students */}
+      {!isLecturer && availableToRegister.length > 0 && (
+        <div className="pt-6 border-t border-slate-200 dark:border-slate-800">
+          <div className="mb-4">
+            <h3 className="text-base font-bold text-slate-800 dark:text-white flex items-center gap-2">
+              <BookOpen className="w-4 h-4 text-blue-600" />
+              Available Campus Courses ({availableToRegister.length})
+            </h3>
+            <p className="text-xs text-slate-500 dark:text-slate-400">
+              Browse classes created by lecturers. Click &ldquo;Use Code &amp; Register&rdquo; to populate the code above.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {availableToRegister.map((c) => (
+              <div
+                key={c.id}
+                className="p-4 rounded-xl border border-dashed border-slate-300 dark:border-slate-700 bg-slate-50/60 dark:bg-slate-900/40 flex flex-col justify-between"
+              >
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-[11px] font-bold px-2 py-0.5 rounded bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300">
+                      {c.level}
+                    </span>
+                    <span className="font-mono text-xs font-bold text-blue-700 dark:text-blue-300 bg-blue-100 dark:bg-blue-950/80 px-2 py-0.5 rounded">
+                      {c.code}
+                    </span>
+                  </div>
+                  <h4 className="font-bold text-sm text-slate-800 dark:text-white">{c.name}</h4>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                    Lecturer: {c.ownerName || 'Course Instructor'}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setRegCode(c.code);
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                  }}
+                  className="mt-3 w-full py-1.5 px-3 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer"
+                >
+                  <span>Use Code &amp; Register</span>
+                  <ArrowRight className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Create / Edit Course Modal */}
       {modalOpen && (
         <div
@@ -565,6 +631,12 @@ export const CoursesView: React.FC<CoursesViewProps> = ({
             <p className="text-xs text-slate-500 mb-5">
               Specify the level, code, and timetable hours for this class.
             </p>
+
+            {saveError && (
+              <div className="mb-4 p-3 rounded-xl bg-rose-50 text-rose-800 border border-rose-200 text-xs font-bold">
+                {saveError}
+              </div>
+            )}
 
             <form onSubmit={handleSaveCourse} className="space-y-4">
               <div>

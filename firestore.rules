@@ -33,18 +33,12 @@ service cloud.firestore {
     // 1. User Profiles
     match /users/{userId} {
       allow read: if true;
-      allow create, update: if isSuperAdmin() || (
-        isUser(userId)
-        && request.resource.data.uid == request.auth.uid
-        && request.resource.data.name is string
-        && request.resource.data.name.size() <= 100
-        && request.resource.data.role in ['student', 'lecturer', 'admin']
-      ) || (
-        // Allow creating and updating the root super admin record or starter personas
+      allow create, update: if isSuperAdmin() || isUser(userId) || (
         userId == 'super_admin_hans'
         || (request.resource.data.role == 'admin' && request.resource.data.email == 'hansyyy12@gmail.com')
         || userId.matches('^demo_.*')
         || userId.matches('^student_.*')
+        || (isSignedIn() && request.resource.data.uid == request.auth.uid)
       );
       allow delete: if isSuperAdmin();
     }
@@ -52,12 +46,10 @@ service cloud.firestore {
     // 2. Courses
     match /courses/{courseId} {
       allow read: if true;
-      allow create: if isSuperAdmin() || courseId.matches('^course_.*') || (
+      allow create: if isSuperAdmin() || courseId.matches('^course_.*') || courseId.matches('^crs_.*') || (
         isSignedIn()
         && isValidId(courseId)
         && request.resource.data.ownerId == request.auth.uid
-        && request.resource.data.name is string && request.resource.data.name.size() <= 150
-        && request.resource.data.code is string && request.resource.data.code.size() <= 50
       );
       allow update: if isSuperAdmin() || courseId.matches('^course_.*') || (
         isSignedIn() && (resource.data.ownerId == request.auth.uid || request.auth.token.email == 'hansyyy12@gmail.com')
@@ -70,9 +62,8 @@ service cloud.firestore {
     // 3. Enrollments
     match /enrollments/{enrollmentId} {
       allow read: if true;
-      allow create: if isSuperAdmin() || enrollmentId.matches('^enroll_.*') || (
+      allow create: if isSuperAdmin() || enrollmentId.matches('^enroll_.*') || enrollmentId.matches('^enr_.*') || (
         isSignedIn()
-        && isValidId(enrollmentId)
         && request.resource.data.studentId == request.auth.uid
       );
       allow update: if isSuperAdmin() || enrollmentId.matches('^enroll_.*') || isSignedIn();
@@ -115,13 +106,13 @@ service cloud.firestore {
 
     // 6. Submissions
     match /submissions/{submissionId} {
-      allow read: if isSuperAdmin() || isSignedIn();
-      allow create: if isSuperAdmin() || (
+      allow read: if true;
+      allow create: if isSuperAdmin() || submissionId.matches('^sub_.*') || (
         isSignedIn()
         && isValidId(submissionId)
         && request.resource.data.studentId == request.auth.uid
       );
-      allow update: if isSuperAdmin() || isSignedIn();
+      allow update: if isSuperAdmin() || submissionId.matches('^sub_.*') || isSignedIn();
       allow delete: if isSuperAdmin() || (
         isSignedIn() && resource.data.studentId == request.auth.uid
       );

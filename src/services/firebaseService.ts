@@ -193,17 +193,68 @@ export function subscribeCourses(
   );
 }
 
+export async function findCourseByCode(code: string): Promise<Course | null> {
+  const clean = code.trim().toUpperCase();
+  const path = 'courses';
+  try {
+    const q = query(collection(db, path), where('code', '==', clean));
+    const snap = await getDocs(q);
+    if (!snap.empty) {
+      const d = snap.docs[0];
+      return { id: d.id, ...d.data() } as Course;
+    }
+    // Fallback: search all courses in case code casing differed in Firestore
+    const allSnap = await getDocs(collection(db, path));
+    const found = allSnap.docs.find(
+      (doc) => (doc.data().code || '').trim().toUpperCase() === clean
+    );
+    if (found) {
+      return { id: found.id, ...found.data() } as Course;
+    }
+    return null;
+  } catch (error) {
+    handleFirestoreError(error, OperationType.GET, path);
+    return null;
+  }
+}
+
+export async function findUserByIndexNo(indexNo: string): Promise<UserProfile | null> {
+  const clean = indexNo.trim();
+  const path = 'users';
+  try {
+    const q = query(collection(db, path), where('indexNo', '==', clean));
+    const snap = await getDocs(q);
+    if (!snap.empty) {
+      return snap.docs[0].data() as UserProfile;
+    }
+    // Fallback: case-insensitive scan
+    const allSnap = await getDocs(collection(db, path));
+    const match = allSnap.docs.find(
+      (d) => ((d.data().indexNo || '') as string).trim().toLowerCase() === clean.toLowerCase()
+    );
+    if (match) {
+      return match.data() as UserProfile;
+    }
+    return null;
+  } catch (error) {
+    handleFirestoreError(error, OperationType.GET, path);
+    return null;
+  }
+}
+
 export async function createCourseDoc(course: Omit<Course, 'id'>, id?: string): Promise<string> {
   const courseId = id || `crs_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
   const path = `courses/${courseId}`;
   try {
     await setDoc(doc(db, 'courses', courseId), {
       ...course,
+      code: course.code.trim().toUpperCase(),
       createdAt: new Date().toISOString(),
     });
     return courseId;
   } catch (error) {
     handleFirestoreError(error, OperationType.CREATE, path);
+    throw error;
   }
 }
 
@@ -257,6 +308,7 @@ export async function createEnrollmentDoc(enrollment: Omit<Enrollment, 'id'>): P
     return enrollmentId;
   } catch (error) {
     handleFirestoreError(error, OperationType.CREATE, path);
+    throw error;
   }
 }
 

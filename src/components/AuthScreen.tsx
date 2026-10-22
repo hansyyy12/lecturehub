@@ -34,10 +34,7 @@ export const AuthScreen: React.FC = () => {
       if (trimmed.toUpperCase() === 'LH-ADMIN-84729163') {
         await loginWithAdminCredentials(trimmed, signinPassword);
       } else {
-        const email = trimmed.includes('@')
-          ? trimmed
-          : `${trimmed.toLowerCase().replace(/\s+/g, '')}@student.hub.edu`;
-        await loginWithEmail(email, signinPassword, selectedRole);
+        await loginWithEmail(trimmed, signinPassword, selectedRole);
       }
     } catch (err: any) {
       setError(err?.message || 'Authentication failed. Please verify credentials.');

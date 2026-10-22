@@ -66,8 +66,13 @@ export const ClassListManagementView: React.FC = () => {
   // Students enrolled in this course
   const classStudents = useMemo(() => {
     if (!activeCourse) return [];
-    return enrollments.filter((e) => e.courseId === activeCourse.id);
-  }, [enrollments, activeCourse?.id]);
+    return enrollments.filter(
+      (e) =>
+        e.courseId === activeCourse.id ||
+        (Boolean(e.courseCode && activeCourse.code) &&
+          e.courseCode.trim().toUpperCase() === activeCourse.code.trim().toUpperCase())
+    );
+  }, [enrollments, activeCourse?.id, activeCourse?.code]);
 
   // Course Quizzes
   const courseQuizzes = useMemo(() => {
