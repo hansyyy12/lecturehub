@@ -121,15 +121,9 @@ service cloud.firestore {
     // 7. Quizzes
     match /quizzes/{quizId} {
       allow read: if true;
-      allow create: if isSuperAdmin() || quizId.matches('^quiz_.*') || (
-        isSignedIn()
-        && isValidId(quizId)
-        && request.resource.data.ownerId == request.auth.uid
-      );
-      allow update: if isSuperAdmin() || quizId.matches('^quiz_.*') || (
-        isSignedIn() && resource.data.ownerId == request.auth.uid
-      );
-      allow delete: if isSuperAdmin() || (
+      allow create: if isSuperAdmin() || quizId.matches('^quiz_.*') || quizId.matches('^qz_.*') || isSignedIn();
+      allow update: if isSuperAdmin() || quizId.matches('^quiz_.*') || quizId.matches('^qz_.*') || isSignedIn();
+      allow delete: if isSuperAdmin() || quizId.matches('^quiz_.*') || quizId.matches('^qz_.*') || (
         isSignedIn() && resource.data.ownerId == request.auth.uid
       );
     }
@@ -137,12 +131,8 @@ service cloud.firestore {
     // 8. Quiz Attempts
     match /quizAttempts/{attemptId} {
       allow read: if true;
-      allow create: if isSuperAdmin() || attemptId.matches('^attempt_.*') || (
-        isSignedIn()
-        && isValidId(attemptId)
-        && request.resource.data.studentId == request.auth.uid
-      );
-      allow update: if isSuperAdmin() || isSignedIn();
+      allow create: if isSuperAdmin() || attemptId.matches('^attempt_.*') || attemptId.matches('^att_.*') || isSignedIn();
+      allow update: if isSuperAdmin() || attemptId.matches('^attempt_.*') || attemptId.matches('^att_.*') || isSignedIn();
       allow delete: if isSuperAdmin() || (
         isSignedIn() && resource.data.studentId == request.auth.uid
       );
@@ -151,14 +141,8 @@ service cloud.firestore {
     // 9. Study Files
     match /studyFiles/{fileId} {
       allow read: if true;
-      allow create: if isSuperAdmin() || fileId.matches('^file_.*') || (
-        isSignedIn()
-        && isValidId(fileId)
-        && request.resource.data.userId == request.auth.uid
-      );
-      allow update: if isSuperAdmin() || fileId.matches('^file_.*') || (
-        isSignedIn() && resource.data.userId == request.auth.uid
-      );
+      allow create: if isSuperAdmin() || fileId.matches('^file_.*') || fileId.matches('^sf_.*') || isSignedIn();
+      allow update: if isSuperAdmin() || fileId.matches('^file_.*') || fileId.matches('^sf_.*') || isSignedIn();
       allow delete: if isSuperAdmin() || (
         isSignedIn() && resource.data.userId == request.auth.uid
       );
@@ -216,6 +200,10 @@ service cloud.firestore {
       allow create: if isSuperAdmin() || meetingId.matches('^meet_.*') || (isSignedIn() && isValidId(meetingId));
       allow update: if isSuperAdmin() || meetingId.matches('^meet_.*') || isSignedIn();
       allow delete: if isSuperAdmin() || isSignedIn();
+
+      match /messages/{messageId} {
+        allow read, write: if true;
+      }
     }
   }
 }

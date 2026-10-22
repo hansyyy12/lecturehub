@@ -8,6 +8,7 @@ import {
   deleteDoc,
   query,
   where,
+  orderBy,
   onSnapshot,
   Unsubscribe,
   serverTimestamp,
@@ -412,17 +413,23 @@ export function subscribeAssignments(
   );
 }
 
-export async function createAssignmentDoc(assignment: Omit<Assignment, 'id'>): Promise<string> {
-  const id = `asg_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
+export async function createAssignmentDoc(
+  assignment: Omit<Assignment, 'id'>,
+  customId?: string
+): Promise<string> {
+  const id = customId || `asg_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
   const path = `assignments/${id}`;
   try {
     await setDoc(doc(db, 'assignments', id), {
       ...assignment,
+      id,
+      courseCode: (assignment.courseCode || '').trim().toUpperCase(),
       createdAt: new Date().toISOString(),
     });
     return id;
   } catch (error) {
     handleFirestoreError(error, OperationType.CREATE, path);
+    throw error;
   }
 }
 
@@ -500,17 +507,20 @@ export function subscribeQuizzes(
   );
 }
 
-export async function createQuizDoc(quiz: Omit<Quiz, 'id'>): Promise<string> {
-  const id = `qz_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
+export async function createQuizDoc(quiz: Omit<Quiz, 'id'>, customId?: string): Promise<string> {
+  const id = customId || `qz_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
   const path = `quizzes/${id}`;
   try {
     await setDoc(doc(db, 'quizzes', id), {
       ...quiz,
+      id,
+      courseCode: (quiz.courseCode || '').trim().toUpperCase(),
       createdAt: new Date().toISOString(),
     });
     return id;
   } catch (error) {
     handleFirestoreError(error, OperationType.CREATE, path);
+    throw error;
   }
 }
 
